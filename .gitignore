@@ -1,0 +1,374 @@
+# ==============================================================================
+# ChargeFreeze
+# Android / Kotlin / Jetpack Compose / Gradle
+# ==============================================================================
+
+
+# ------------------------------------------------------------------------------
+# Gradle
+# ------------------------------------------------------------------------------
+
+.gradle/
+build/
+**/build/
+
+# Gradle local configuration
+gradle-app.setting
+
+# Gradle cache / task state
+.gradle-cache/
+
+
+# ------------------------------------------------------------------------------
+# Android Studio / IntelliJ IDEA
+# ------------------------------------------------------------------------------
+
+.idea/
+
+*.iml
+*.ipr
+*.iws
+
+# Android Studio generated files
+.idea/caches/
+.idea/libraries/
+.idea/modules.xml
+.idea/workspace.xml
+.idea/tasks.xml
+.idea/usage.statistics.xml
+.idea/dictionaries/
+.idea/shelf/
+.idea/navEditor.xml
+.idea/assetWizardSettings.xml
+.idea/deploymentTargetSelector.xml
+.idea/migrations.xml
+
+# Device / deployment selections
+.idea/deploymentTargetDropDown.xml
+.idea/deploymentTargetSelector.xml
+
+# Kotlin / Compose IDE state
+.idea/kotlinScripting.xml
+.idea/compiler.xml
+
+
+# ------------------------------------------------------------------------------
+# Local Android SDK configuration
+# ------------------------------------------------------------------------------
+
+local.properties
+
+
+# ------------------------------------------------------------------------------
+# Signing / Keystore
+# ------------------------------------------------------------------------------
+
+*.jks
+*.keystore
+*.p12
+*.pfx
+
+keystore.properties
+signing.properties
+signing-config.properties
+
+# Common signing directories
+keystore/
+keystores/
+signing/
+
+
+# ------------------------------------------------------------------------------
+# Secrets / Environment files
+# ------------------------------------------------------------------------------
+
+.env
+.env.*
+!.env.example
+
+secrets.properties
+secret.properties
+
+*.secret
+*.secrets
+
+credentials.properties
+
+
+# ------------------------------------------------------------------------------
+# Android generated outputs
+# ------------------------------------------------------------------------------
+
+captures/
+
+.externalNativeBuild/
+.cxx/
+
+# APK / App Bundle
+*.apk
+*.aab
+
+# Android profiling / tracing
+*.hprof
+*.trace
+
+# Native debug symbols
+*.so.dbg
+*.symbols.zip
+
+
+# ------------------------------------------------------------------------------
+# R8 / ProGuard generated files
+# ------------------------------------------------------------------------------
+
+mapping.txt
+seeds.txt
+usage.txt
+configuration.txt
+
+**/mapping/
+**/outputs/mapping/
+
+
+# ------------------------------------------------------------------------------
+# Kotlin
+# ------------------------------------------------------------------------------
+
+.kotlin/
+
+# Kotlin compiler daemon / incremental caches
+*.kotlin_module
+
+# Kotlin Native (future-proofing)
+.konan/
+
+
+# ------------------------------------------------------------------------------
+# Java / JVM
+# ------------------------------------------------------------------------------
+
+*.class
+
+hs_err_pid*
+replay_pid*
+
+
+# ------------------------------------------------------------------------------
+# Logs
+# ------------------------------------------------------------------------------
+
+*.log
+logs/
+
+
+# ------------------------------------------------------------------------------
+# Temporary / backup files
+# ------------------------------------------------------------------------------
+
+*.tmp
+*.temp
+*.bak
+*.backup
+
+*~
+*.swp
+*.swo
+
+.DS_Store?
+
+
+# ------------------------------------------------------------------------------
+# macOS
+# ------------------------------------------------------------------------------
+
+.DS_Store
+.AppleDouble
+.LSOverride
+
+Icon
+
+._*
+
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+
+.com.apple.timemachine.donotpresent
+
+
+# ------------------------------------------------------------------------------
+# Windows
+# ------------------------------------------------------------------------------
+
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+
+Desktop.ini
+
+$RECYCLE.BIN/
+
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
+
+
+# ------------------------------------------------------------------------------
+# Linux
+# ------------------------------------------------------------------------------
+
+*~
+.directory
+.Trash-*
+
+
+# ------------------------------------------------------------------------------
+# VS Code
+# ------------------------------------------------------------------------------
+
+.vscode/
+
+# Keep workspace recommendations if intentionally added later:
+# !.vscode/extensions.json
+
+
+# ------------------------------------------------------------------------------
+# Fleet
+# ------------------------------------------------------------------------------
+
+.fleet/
+
+
+# ------------------------------------------------------------------------------
+# Firebase / Google Services
+# ------------------------------------------------------------------------------
+
+# ChargeFreeze intentionally does not use Firebase.
+# Ignore these files in case they are accidentally introduced.
+
+google-services.json
+GoogleService-Info.plist
+
+
+# ------------------------------------------------------------------------------
+# Fastlane
+# ------------------------------------------------------------------------------
+
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/
+fastlane/test_output/
+
+# Keep Fastfile / Appfile if Fastlane is intentionally added.
+
+
+# ------------------------------------------------------------------------------
+# Benchmark / Baseline Profile generated outputs
+# ------------------------------------------------------------------------------
+
+benchmark/build/
+baselineprofile/build/
+
+
+# ------------------------------------------------------------------------------
+# Test outputs
+# ------------------------------------------------------------------------------
+
+test-results/
+reports/
+
+**/test-results/
+**/reports/
+
+coverage/
+*.exec
+*.ec
+
+
+# ------------------------------------------------------------------------------
+# Lint
+# ------------------------------------------------------------------------------
+
+lint-results*.html
+lint-results*.xml
+lint-results*.txt
+
+lint-baseline-generated.xml
+
+
+# ------------------------------------------------------------------------------
+# Documentation / tooling temporary outputs
+# ------------------------------------------------------------------------------
+
+docs/.cache/
+site/
+
+.dokka/
+
+
+# ------------------------------------------------------------------------------
+# Local project notes
+# ------------------------------------------------------------------------------
+
+notes.local.md
+TODO.local.md
+scratch/
+
+
+# ------------------------------------------------------------------------------
+# GitHub local tooling
+# ------------------------------------------------------------------------------
+
+.github/.cache/
+
+
+# ------------------------------------------------------------------------------
+# ChargeFreeze-specific local files
+# ------------------------------------------------------------------------------
+
+# Local diagnostic dumps from Samsung / ADB testing
+adb-output.txt
+adb-dump.txt
+battery-dump.txt
+device-dump.txt
+diagnostics.txt
+
+# Local release artifacts
+release/
+releases/
+
+# Local APK size comparison files
+apk-size.txt
+size-report.txt
+
+
+# ------------------------------------------------------------------------------
+# IMPORTANT: Files intentionally tracked
+# ------------------------------------------------------------------------------
+
+# Do NOT ignore:
+#
+# gradle/wrapper/gradle-wrapper.jar
+# gradle/wrapper/gradle-wrapper.properties
+# gradlew
+# gradlew.bat
+#
+# LICENSE
+# README.md
+# PRIVACY.md
+# SECURITY.md
+# CONTRIBUTING.md
+# CODE_OF_CONDUCT.md
+# CHANGELOG.md
+#
+# assets/
+# app/src/main/res/
+#
+# These files are part of the public source repository.
