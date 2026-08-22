@@ -9,6 +9,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
+import android.hardware.usb.UsbManager
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import com.alpwarestudio.chargefreeze.MainActivity
@@ -22,7 +23,7 @@ import com.alpwarestudio.chargefreeze.data.BatteryMonitor
  */
 class UsbConnectReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent?) {
-        if (intent?.action != Intent.ACTION_POWER_CONNECTED) return
+        if (intent?.action !in SUPPORTED_ACTIONS) return
         if (!AppPreferences(context).startOnUsbConnect) return
         if (BatteryMonitor(context).snapshot().source != "USB") return
         if (Build.VERSION.SDK_INT >= 33 && ContextCompat.checkSelfPermission(
@@ -37,7 +38,6 @@ class UsbConnectReceiver : BroadcastReceiver() {
         )
 
         val launchIntent = Intent(context, MainActivity::class.java).apply {
-            action = MainActivity.ACTION_ENABLE_FREEZE
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
         }
         val pendingIntent = PendingIntent.getActivity(
@@ -60,6 +60,10 @@ class UsbConnectReceiver : BroadcastReceiver() {
     }
 
     private companion object {
+        val SUPPORTED_ACTIONS = setOf(
+            UsbManager.ACTION_USB_DEVICE_ATTACHED,
+            UsbManager.ACTION_USB_ACCESSORY_ATTACHED
+        )
         const val CHANNEL_ID = "usb_freeze_prompt"
         const val NOTIFICATION_ID = 43
     }

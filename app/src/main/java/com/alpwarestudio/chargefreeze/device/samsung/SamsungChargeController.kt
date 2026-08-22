@@ -8,6 +8,7 @@ import android.provider.Settings
 import androidx.core.content.ContextCompat
 import com.alpwarestudio.chargefreeze.data.AppPreferences
 import com.alpwarestudio.chargefreeze.domain.ChargeController
+import com.alpwarestudio.chargefreeze.domain.FreezePolicy
 import com.alpwarestudio.chargefreeze.domain.OriginalBatteryProtection
 
 /**
@@ -25,9 +26,13 @@ class SamsungChargeController(private val context: Context) : ChargeController {
     private val thresholdKey = "battery_protection_threshold"
     private val rechargeKey = "battery_protection_recharge_level"
 
-    override fun isSupported(): Boolean =
-        Build.MANUFACTURER.equals("samsung", ignoreCase = true) &&
-                Settings.Global.getString(resolver, thresholdKey) != null
+    override fun isSupported(): Boolean {
+        if (!Build.MANUFACTURER.equals("samsung", ignoreCase = true)) return false
+        val mode = Settings.Global.getString(resolver, modeKey)?.toIntOrNull() ?: return false
+        val threshold = Settings.Global.getString(resolver, thresholdKey)?.toIntOrNull() ?: return false
+        val recharge = Settings.Global.getString(resolver, rechargeKey)?.toIntOrNull() ?: return false
+        return mode >= 0 && threshold in FreezePolicy.MIN_THRESHOLD..100 && recharge in 0..100
+    }
 
     override fun hasWritePermission(): Boolean =
         ContextCompat.checkSelfPermission(
@@ -36,27 +41,41 @@ class SamsungChargeController(private val context: Context) : ChargeController {
         ) == PackageManager.PERMISSION_GRANTED
 
     override fun readOriginalState(): OriginalBatteryProtection? = runCatching {
-        OriginalBatteryProtection(
+        val state = OriginalBatteryProtection(
             mode = Settings.Global.getInt(resolver, modeKey),
             threshold = Settings.Global.getInt(resolver, thresholdKey),
             rechargeLevel = Settings.Global.getInt(resolver, rechargeKey)
         )
+        check(state.mode >= 0 && state.threshold in FreezePolicy.MIN_THRESHOLD..100)
+        check(state.rechargeLevel in 0..100)
+        state
     }.getOrNull()
 
     override fun beginFreeze(level: Int): Result<Int> = runCatching {
         check(isSupported()) { "Unsupported Samsung firmware" }
         check(hasWritePermission()) { "WRITE_SECURE_SETTINGS is not granted" }
         // Keep a small margin below the current level. This avoids immediate charge oscillation.
-        val target = (level - AppPreferences(context).freezeMargin).coerceIn(MIN_THRESHOLD, 100)
-        writeVerified(modeKey, MODE_MAXIMUM)
+        val target = FreezePolicy.targetFor(level, AppPreferences(context).freezeMargin)
         writeVerified(thresholdKey, target)
+        writeVerified(modeKey, MODE_MAXIMUM)
         target
     }
 
     override fun maintainFreeze(level: Int, currentThreshold: Int): Result<Int> = runCatching {
-        // Moving-threshold fallback: before the battery crosses the active threshold, move it down.
-        val desired = (level - AppPreferences(context).freezeMargin).coerceAtLeast(MIN_THRESHOLD)
-        if (level <= currentThreshold + 1 && desired < currentThreshold) {
+        check(isSupported()) { "Unsupported Samsung firmware" }
+        check(hasWritePermission()) { "WRITE_SECURE_SETTINGS is not granted" }
+        check(Settings.Global.getInt(resolver, modeKey, Int.MIN_VALUE) == MODE_MAXIMUM) {
+            "Battery protection mode was changed outside ChargeFreeze"
+        }
+        check(Settings.Global.getInt(resolver, thresholdKey, Int.MIN_VALUE) == currentThreshold) {
+            "Battery protection threshold was changed outside ChargeFreeze"
+        }
+        val desired = FreezePolicy.nextThreshold(
+            level,
+            currentThreshold,
+            AppPreferences(context).freezeMargin
+        )
+        if (desired < currentThreshold) {
             writeVerified(thresholdKey, desired)
             desired
         } else currentThreshold
@@ -80,7 +99,6 @@ class SamsungChargeController(private val context: Context) : ChargeController {
     }
 
     private companion object {
-        const val MIN_THRESHOLD = 20
         const val MODE_MAXIMUM = 3 // Observed on current Samsung firmware; verified after writing.
     }
 }

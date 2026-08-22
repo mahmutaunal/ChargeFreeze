@@ -4,69 +4,51 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.os.BatteryManager
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AcUnit
-import androidx.compose.material.icons.filled.BatteryStd
-import androidx.compose.material.icons.filled.Bolt
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.ContentCopy
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.PauseCircle
-import androidx.compose.material.icons.filled.Schedule
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Thermostat
-import androidx.compose.material.icons.filled.Usb
-import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Surface
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.Text
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import java.text.DateFormat
-import java.util.Date
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.alpwarestudio.chargefreeze.R
 import com.alpwarestudio.chargefreeze.domain.BatterySnapshot
 import com.alpwarestudio.chargefreeze.domain.FreezeState
+import java.text.DateFormat
+import java.util.Date
+
+private val ActiveGreenStart = Color(0xFF0C6D25)
+private val ActiveGreenEnd = Color(0xFF258D16)
+private val ActionTeal = Color(0xFF10B993)
+private val ActionGreen = Color(0xFF18A843)
+private val DangerStart = Color(0xFFD92735)
+private val DangerEnd = Color(0xFFEE4147)
 
 @Composable
 fun HomeScreen(vm: MainViewModel, onSettings: () -> Unit) {
@@ -75,242 +57,230 @@ fun HomeScreen(vm: MainViewModel, onSettings: () -> Unit) {
     val supported = vm.controller.isSupported()
     val hasPermission = vm.controller.hasWritePermission()
 
-    Surface(
-        modifier = Modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.background
-    ) {
+    Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .statusBarsPadding()
                 .navigationBarsPadding()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp, vertical = 18.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+                .padding(horizontal = 20.dp)
+                .padding(top = 8.dp, bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Header(supported = supported, hasPermission = hasPermission, active = freeze.active, onSettings = onSettings)
-
-            AnimatedContent(targetState = freeze.active, label = "freeze-state") { active ->
+            HomeHeader(active = freeze.active, onSettings = onSettings)
+            AnimatedContent(targetState = freeze.active, label = "freeze-content") { active ->
                 if (active) {
-                    ActiveContent(battery = battery, freeze = freeze, onStop = vm::disable)
+                    ActiveSession(battery, freeze, vm::disable)
                 } else {
-                    IdleContent(
+                    IdleDashboard(
                         battery = battery,
                         supported = supported,
                         hasPermission = hasPermission,
-                        onEnable = vm::enable
+                        recoveryRequired = freeze.recoveryRequired,
+                        onEnable = vm::enable,
+                        onRestore = vm::restore
                     )
                 }
             }
-
-            freeze.message?.let {
-                StatusMessage(text = it, error = true)
-            }
+            freeze.message?.let { StatusNotice(it, isError = freeze.recoveryRequired) }
         }
     }
 }
 
 @Composable
-private fun Header(supported: Boolean, hasPermission: Boolean, active: Boolean, onSettings: () -> Unit) {
+private fun HomeHeader(active: Boolean, onSettings: () -> Unit) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
+        modifier = Modifier.fillMaxWidth().height(52.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
-            text = "ChargeFreeze",
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.SemiBold
-        )
-        IconButton(onClick = onSettings) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text("ChargeFreeze", style = MaterialTheme.typography.headlineSmall)
+            if (active) {
+                Text(
+                    stringResource(R.string.freeze_active),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+        }
+        if (active) {
+            Icon(Icons.Default.Shield, null, tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(22.dp))
+            Spacer(Modifier.width(8.dp))
+        }
+        IconButton(onClick = onSettings, modifier = Modifier.size(42.dp)) {
             Icon(
-                imageVector = Icons.Default.Settings,
-                contentDescription = stringResource(R.string.settings),
-                tint = if (active || (supported && hasPermission))
-                    MaterialTheme.colorScheme.onSurface
-                else MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(26.dp)
+                Icons.Default.Settings,
+                stringResource(R.string.settings),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(22.dp)
             )
         }
     }
 }
 
 @Composable
-private fun IdleContent(
+private fun IdleDashboard(
     battery: BatterySnapshot,
     supported: Boolean,
     hasPermission: Boolean,
-    onEnable: () -> Unit
+    recoveryRequired: Boolean,
+    onEnable: () -> Unit,
+    onRestore: () -> Unit
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        BatteryRing(level = battery.level)
-
-        MetricCard(
-            icon = Icons.Default.Usb,
-            title = if (battery.plugged) connectionTitle(battery) else stringResource(R.string.not_connected),
-            subtitle = stringResource(R.string.power_source)
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        BatteryGauge(battery.level)
+        StatusCard(
+            Icons.Default.Usb,
+            if (battery.plugged) connectionTitle(battery) else stringResource(R.string.not_connected),
+            stringResource(R.string.power_source),
+            MaterialTheme.colorScheme.primary
         )
-
-        MetricCard(
-            icon = Icons.Default.BatteryStd,
-            title = if (battery.isCharging) stringResource(R.string.charging) else stringResource(R.string.not_charging),
-            subtitle = stringResource(R.string.charging_status)
+        StatusCard(
+            if (battery.isCharging) Icons.Default.BatteryChargingFull else Icons.Default.BatteryStd,
+            stringResource(if (battery.isCharging) R.string.charging else R.string.not_charging),
+            stringResource(R.string.charging_status),
+            if (battery.isCharging) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary
         )
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            SmallMetricCard(
-                modifier = Modifier.weight(1f),
-                icon = Icons.Default.Thermostat,
-                label = stringResource(R.string.temperature),
-                value = "%.1f °C".format(battery.temperatureC)
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            CompactMetric(
+                Modifier.weight(1f), Icons.Default.Thermostat,
+                stringResource(R.string.temperature), "%.1f °C".format(battery.temperatureC),
+                Color(0xFFFFAA16)
             )
-            SmallMetricCard(
-                modifier = Modifier.weight(1f),
-                icon = Icons.Default.Favorite,
-                label = stringResource(R.string.health),
-                value = batteryHealthLabel(battery.health)
+            CompactMetric(
+                Modifier.weight(1f), Icons.Default.Favorite,
+                stringResource(R.string.health), batteryHealthLabel(battery.health),
+                MaterialTheme.colorScheme.secondary
             )
         }
-
         when {
-            !supported -> StatusMessage(stringResource(R.string.unsupported), error = false)
-            !hasPermission -> PermissionCard()
-            else -> EnableButton(onClick = onEnable)
+            recoveryRequired -> OutlineAction(
+                stringResource(R.string.restore_original_settings),
+                Icons.Default.WarningAmber,
+                onRestore
+            )
+            !supported -> StatusNotice(stringResource(R.string.unsupported), false)
+            !hasPermission -> PermissionPanel()
+            else -> GradientAction(
+                stringResource(R.string.enable_freeze),
+                Icons.Default.AcUnit,
+                listOf(ActionTeal, ActionGreen),
+                onEnable
+            )
         }
     }
 }
 
 @Composable
-private fun ActiveContent(
-    battery: BatterySnapshot,
-    freeze: FreezeState,
-    onStop: () -> Unit
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        Card(
-            shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(18.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(54.dp)
-                        .background(MaterialTheme.colorScheme.primary, CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        Icons.Default.AcUnit,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onPrimary,
-                        modifier = Modifier.size(31.dp)
-                    )
-                }
-                Spacer(Modifier.width(14.dp))
-                Column {
-                    Text(
-                        stringResource(R.string.freeze_active),
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Text(
-                        stringResource(R.string.freeze_started),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-        }
-
-        DetailTable(
-            rows = listOf(
-                DetailRow(Icons.Default.Schedule, stringResource(R.string.started_at), formatStartTime(freeze.startedAtMillis)),
-                DetailRow(Icons.Default.Usb, stringResource(R.string.start_level), "${freeze.startLevel ?: battery.level}%"),
-                DetailRow(Icons.Default.BatteryStd, stringResource(R.string.current_level), "${battery.level}%"),
-                DetailRow(Icons.Default.Bolt, stringResource(R.string.charge_status), stringResource(if (battery.isCharging) R.string.charging else R.string.paused)),
-                DetailRow(Icons.Default.Usb, stringResource(R.string.usb_power), stringResource(if (battery.plugged) R.string.connected else R.string.disconnected)),
-                DetailRow(Icons.Default.AcUnit, stringResource(R.string.strategy), stringResource(R.string.moving_threshold))
+private fun ActiveSession(battery: BatterySnapshot, freeze: FreezeState, onStop: () -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        ActiveBanner(freeze)
+        DetailPanel(
+            listOf(
+                DetailItem(Icons.Default.Schedule, stringResource(R.string.started_at), formatStartTime(freeze.startedAtMillis)),
+                DetailItem(Icons.Default.Usb, stringResource(R.string.start_level), "${freeze.startLevel ?: battery.level}%"),
+                DetailItem(Icons.Default.BatteryStd, stringResource(R.string.current_level), "${battery.level}%"),
+                DetailItem(
+                    Icons.Default.Bolt,
+                    stringResource(R.string.charge_status),
+                    stringResource(if (battery.isCharging) R.string.charging else R.string.paused),
+                    if (battery.isCharging) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.secondary
+                ),
+                DetailItem(
+                    Icons.Default.Usb,
+                    stringResource(R.string.usb_power),
+                    stringResource(if (battery.plugged) R.string.connected else R.string.disconnected)
+                ),
+                DetailItem(
+                    Icons.Default.AcUnit,
+                    stringResource(R.string.strategy),
+                    stringResource(R.string.moving_threshold),
+                    Color(0xFFFFA900)
+                )
             )
         )
-
-        Button(
-            onClick = onStop,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(58.dp),
-            shape = RoundedCornerShape(18.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.error,
-                contentColor = MaterialTheme.colorScheme.onError
-            )
-        ) {
-            Icon(Icons.Default.PauseCircle, contentDescription = null)
-            Spacer(Modifier.width(10.dp))
-            Text(stringResource(R.string.stop_freeze), fontWeight = FontWeight.SemiBold)
-        }
+        GradientAction(
+            stringResource(R.string.stop_freeze),
+            Icons.Default.PauseCircle,
+            listOf(DangerStart, DangerEnd),
+            onStop
+        )
     }
 }
 
 @Composable
-private fun BatteryRing(level: Int) {
-    val progress = level.coerceIn(0, 100) / 100f
-    val primary = MaterialTheme.colorScheme.primary
-    val track = MaterialTheme.colorScheme.outline.copy(alpha = 0.38f)
-
-    Box(
+private fun ActiveBanner(freeze: FreezeState) {
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 8.dp),
+            .background(Brush.horizontalGradient(listOf(ActiveGreenStart, ActiveGreenEnd)), RoundedCornerShape(18.dp))
+            .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(18.dp))
+            .padding(horizontal = 16.dp, vertical = 15.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier.size(48.dp).background(Color.White.copy(alpha = 0.16f), CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(Icons.Default.AcUnit, null, tint = Color.White, modifier = Modifier.size(28.dp))
+        }
+        Spacer(Modifier.width(14.dp))
+        Column {
+            Text(stringResource(R.string.freeze_active), color = Color.White, style = MaterialTheme.typography.titleLarge)
+            Text(
+                "${stringResource(R.string.freeze_started)} • ${formatStartTime(freeze.startedAtMillis)}",
+                color = Color.White.copy(alpha = 0.78f),
+                style = MaterialTheme.typography.bodySmall
+            )
+        }
+    }
+}
+
+@Composable
+private fun BatteryGauge(level: Int) {
+    val progress by animateFloatAsState(
+        level.coerceIn(0, 100) / 100f,
+        tween(650),
+        label = "battery-progress"
+    )
+    val track = MaterialTheme.colorScheme.outlineVariant
+    val primary = MaterialTheme.colorScheme.primary
+    val secondary = MaterialTheme.colorScheme.secondary
+
+    Box(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 5.dp),
         contentAlignment = Alignment.Center
     ) {
-        Box(modifier = Modifier.size(220.dp), contentAlignment = Alignment.Center) {
-            Canvas(modifier = Modifier.fillMaxSize()) {
-                val stroke = 12.dp.toPx()
-                val inset = stroke / 2f
+        Box(Modifier.size(178.dp), contentAlignment = Alignment.Center) {
+            Canvas(Modifier.fillMaxSize()) {
+                val stroke = 9.dp.toPx()
+                val inset = stroke / 2
+                val arcSize = Size(size.width - stroke, size.height - stroke)
                 drawArc(
-                    color = track,
-                    startAngle = -90f,
-                    sweepAngle = 360f,
-                    useCenter = false,
-                    topLeft = Offset(inset, inset),
-                    size = Size(size.width - stroke, size.height - stroke),
+                    track, -90f, 360f, false, Offset(inset, inset), arcSize,
                     style = Stroke(stroke, cap = StrokeCap.Round)
                 )
                 drawArc(
-                    color = primary,
-                    startAngle = -90f,
-                    sweepAngle = 360f * progress,
-                    useCenter = false,
-                    topLeft = Offset(inset, inset),
-                    size = Size(size.width - stroke, size.height - stroke),
+                    Brush.sweepGradient(listOf(primary, secondary, primary)),
+                    -90f, 360f * progress, false, Offset(inset, inset), arcSize,
                     style = Stroke(stroke, cap = StrokeCap.Round)
                 )
             }
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Row(verticalAlignment = Alignment.Bottom) {
                     Text(
-                        text = "$level",
-                        fontSize = 60.sp,
-                        lineHeight = 62.sp,
+                        "$level",
+                        fontSize = 46.sp,
+                        lineHeight = 49.sp,
                         fontWeight = FontWeight.Normal
                     )
-                    Text(
-                        text = "%",
-                        fontSize = 27.sp,
-                        modifier = Modifier.padding(bottom = 8.dp)
-                    )
+                    Text("%", fontSize = 21.sp, modifier = Modifier.padding(bottom = 5.dp))
                 }
                 Text(
                     stringResource(R.string.battery_level),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.bodyMedium
+                    style = MaterialTheme.typography.bodySmall
                 )
             }
         }
@@ -318,22 +288,25 @@ private fun BatteryRing(level: Int) {
 }
 
 @Composable
-private fun MetricCard(icon: ImageVector, title: String, subtitle: String) {
+private fun StatusCard(icon: ImageVector, title: String, subtitle: String, accent: Color) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+        modifier = Modifier.fillMaxWidth().border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(15.dp)),
+        shape = RoundedCornerShape(15.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 18.dp, vertical = 15.dp),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 15.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
-            Spacer(Modifier.width(14.dp))
+            Box(
+                Modifier.size(34.dp).background(accent.copy(alpha = 0.12f), RoundedCornerShape(10.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(icon, null, tint = accent, modifier = Modifier.size(19.dp))
+            }
+            Spacer(Modifier.width(12.dp))
             Column {
-                Text(title, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.titleMedium)
+                Text(title, style = MaterialTheme.typography.titleMedium)
                 Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
@@ -341,127 +314,176 @@ private fun MetricCard(icon: ImageVector, title: String, subtitle: String) {
 }
 
 @Composable
-private fun SmallMetricCard(modifier: Modifier, icon: ImageVector, label: String, value: String) {
+private fun CompactMetric(
+    modifier: Modifier,
+    icon: ImageVector,
+    label: String,
+    value: String,
+    accent: Color
+) {
     Card(
-        modifier = modifier,
-        shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+        modifier = modifier.height(88.dp).border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(15.dp)),
+        shape = RoundedCornerShape(15.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
-        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 14.dp, vertical = 12.dp)
+        ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(22.dp))
-                Spacer(Modifier.width(8.dp))
+                Icon(icon, null, tint = accent, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(7.dp))
                 Text(label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            Text(value, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    value,
+                    style = MaterialTheme.typography.titleLarge,
+                    textAlign = TextAlign.Center
+                )
+            }
+        }
+    }
+}
+
+private data class DetailItem(
+    val icon: ImageVector,
+    val label: String,
+    val value: String,
+    val accent: Color? = null
+)
+
+@Composable
+private fun DetailPanel(rows: List<DetailItem>) {
+    Card(
+        modifier = Modifier.fillMaxWidth().border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(17.dp)),
+        shape = RoundedCornerShape(17.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+    ) {
+        rows.forEachIndexed { index, row ->
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 13.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    row.icon, null,
+                    tint = row.accent ?: MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(Modifier.width(11.dp))
+                Text(row.label, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                Text(
+                    row.value,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = row.accent ?: MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.End
+                )
+            }
+            if (index < rows.lastIndex) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         }
     }
 }
 
 @Composable
-private fun EnableButton(onClick: () -> Unit) {
-    Button(
-        onClick = onClick,
+private fun GradientAction(
+    text: String,
+    icon: ImageVector,
+    colors: List<Color>,
+    onClick: () -> Unit
+) {
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .height(58.dp),
-        shape = RoundedCornerShape(18.dp)
+            .height(54.dp)
+            .background(Brush.horizontalGradient(colors), RoundedCornerShape(15.dp))
+            .clickable(role = Role.Button, onClick = onClick),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center
     ) {
-        Icon(Icons.Default.AcUnit, contentDescription = null)
-        Spacer(Modifier.width(10.dp))
-        Text(stringResource(R.string.enable_freeze), fontWeight = FontWeight.SemiBold)
+        Icon(icon, null, tint = Color.White, modifier = Modifier.size(22.dp))
+        Spacer(Modifier.width(9.dp))
+        Text(text, color = Color.White, style = MaterialTheme.typography.labelLarge)
     }
 }
 
 @Composable
-private fun PermissionCard() {
-    val context = LocalContext.current
-    Card(
-        shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+private fun OutlineAction(text: String, icon: ImageVector, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(54.dp)
+            .border(1.dp, MaterialTheme.colorScheme.error, RoundedCornerShape(15.dp))
+            .clickable(role = Role.Button, onClick = onClick),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center
     ) {
-        Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text(stringResource(R.string.permission_required), fontWeight = FontWeight.SemiBold)
+        Icon(icon, null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(21.dp))
+        Spacer(Modifier.width(8.dp))
+        Text(text, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelLarge)
+    }
+}
+
+@Composable
+private fun PermissionPanel() {
+    val context = LocalContext.current
+    val command = stringResource(R.string.permission_command)
+    Card(
+        modifier = Modifier.fillMaxWidth().border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(15.dp)),
+        shape = RoundedCornerShape(15.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+    ) {
+        Column(Modifier.padding(15.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text(stringResource(R.string.permission_required), style = MaterialTheme.typography.titleMedium)
             Text(
                 stringResource(R.string.permission_explanation),
-                style = MaterialTheme.typography.bodyMedium,
+                style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            OutlinedButton(onClick = {
-                val text = context.getString(R.string.permission_command)
-                context.getSystemService(ClipboardManager::class.java)
-                    .setPrimaryClip(ClipData.newPlainText("ADB", text))
-            }) {
-                Icon(Icons.Default.ContentCopy, contentDescription = null)
-                Spacer(Modifier.width(8.dp))
-                Text(stringResource(R.string.copy_command))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(42.dp)
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f), RoundedCornerShape(11.dp))
+                    .clickable(role = Role.Button) {
+                        context.getSystemService(ClipboardManager::class.java)
+                            .setPrimaryClip(ClipData.newPlainText("ADB", command))
+                    },
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                Icon(Icons.Default.ContentCopy, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(7.dp))
+                Text(stringResource(R.string.copy_command), color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelMedium)
             }
         }
     }
 }
 
 @Composable
-private fun StatusMessage(text: String, error: Boolean) {
-    Card(
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (error) MaterialTheme.colorScheme.error.copy(alpha = 0.10f)
-            else MaterialTheme.colorScheme.surfaceVariant
-        )
+private fun StatusNotice(text: String, isError: Boolean) {
+    val accent = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(accent.copy(alpha = 0.08f), RoundedCornerShape(14.dp))
+            .border(1.dp, accent.copy(alpha = 0.16f), RoundedCornerShape(14.dp))
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(14.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                Icons.Default.Warning,
-                contentDescription = null,
-                tint = if (error) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(Modifier.width(10.dp))
-            Text(text, style = MaterialTheme.typography.bodyMedium)
-        }
-    }
-}
-
-private data class DetailRow(val icon: ImageVector, val label: String, val value: String)
-
-@Composable
-private fun DetailTable(rows: List<DetailRow>) {
-    Card(
-        shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-    ) {
-        Column {
-            rows.forEachIndexed { index, row ->
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 13.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(row.icon, contentDescription = null, modifier = Modifier.size(19.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Spacer(Modifier.width(12.dp))
-                    Text(row.label, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
-                    Text(row.value, fontWeight = FontWeight.Medium, textAlign = TextAlign.End)
-                }
-                if (index != rows.lastIndex) {
-                    Box(
-                        Modifier
-                            .fillMaxWidth()
-                            .height(1.dp)
-                            .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.45f))
-                    )
-                }
-            }
-        }
+        Icon(Icons.Default.WarningAmber, null, tint = accent, modifier = Modifier.size(20.dp))
+        Spacer(Modifier.width(10.dp))
+        Text(text, color = accent, style = MaterialTheme.typography.bodyMedium)
     }
 }
 
 @Composable
-private fun connectionTitle(battery: BatterySnapshot): String = when (battery.source) {
+private fun connectionTitle(snapshot: BatterySnapshot): String = when (snapshot.source) {
     "USB" -> stringResource(R.string.usb_connected)
     "AC" -> stringResource(R.string.ac_connected)
     "Wireless" -> stringResource(R.string.wireless_connected)
@@ -478,9 +500,5 @@ private fun batteryHealthLabel(health: Int): String = when (health) {
     else -> stringResource(R.string.health_unknown)
 }
 
-@Composable
-private fun formatStartTime(millis: Long?): String = if (millis == null) {
-    stringResource(R.string.this_session)
-} else {
-    DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(millis))
-}
+private fun formatStartTime(millis: Long?): String =
+    millis?.let { DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(it)) } ?: "—"

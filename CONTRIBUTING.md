@@ -10,5 +10,10 @@ Thank you for helping ChargeFreeze support more devices safely.
 6. Add English and Turkish strings for user-visible features.
 7. Document the device model, Android version, firmware/skin version, and test procedure for new backends.
 8. Do not commit signing keys, local SDK paths, secrets, APKs, IDE caches, or personal diagnostics.
+9. Run `./gradlew testDebugUnitTest lintDebug assembleDebug` before submitting a pull request.
+
+Device validation must cover activation, verified non-charging status, USB data continuity,
+USB disconnection, repeated activation, app/process recreation, manual stop, permission
+revocation, and restoration of every original vendor setting.
 
 By contributing, you agree that your contribution is licensed under GPL-3.0-only.

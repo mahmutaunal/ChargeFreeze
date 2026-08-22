@@ -20,5 +20,22 @@ data class FreezeState(
     val startLevel: Int? = null,
     val currentThreshold: Int? = null,
     val startedAtMillis: Long? = null,
+    val recoveryRequired: Boolean = false,
+    val message: String? = null
+)
+
+enum class SessionPhase {
+    PREPARING,
+    ACTIVE,
+    RESTORING,
+    RECOVERY_REQUIRED
+}
+
+data class FreezeSession(
+    val phase: SessionPhase,
+    val original: OriginalBatteryProtection,
+    val startLevel: Int,
+    val currentThreshold: Int,
+    val startedAtMillis: Long,
     val message: String? = null
 )

@@ -1,16 +1,19 @@
 package com.alpwarestudio.chargefreeze
 
 import android.content.Context
-import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.ui.platform.LocalView
+import androidx.core.view.WindowCompat
 import com.alpwarestudio.chargefreeze.data.AppPreferences
 import com.alpwarestudio.chargefreeze.data.LocaleController
 import com.alpwarestudio.chargefreeze.data.ThemeMode
@@ -35,6 +38,19 @@ class MainActivity : ComponentActivity() {
         setContent {
             var screen by remember { mutableStateOf(AppScreen.HOME) }
             var themeMode by remember { mutableStateOf(preferences.themeMode) }
+            val darkTheme = when (themeMode) {
+                ThemeMode.SYSTEM -> isSystemInDarkTheme()
+                ThemeMode.LIGHT -> false
+                ThemeMode.DARK -> true
+            }
+            val view = LocalView.current
+
+            SideEffect {
+                WindowCompat.getInsetsController(window, view).apply {
+                    isAppearanceLightStatusBars = !darkTheme
+                    isAppearanceLightNavigationBars = !darkTheme
+                }
+            }
 
             ChargeFreezeTheme(themeMode) {
                 when (screen) {
@@ -59,16 +75,6 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        if (intent?.action == ACTION_ENABLE_FREEZE) vm.enable()
-    }
-
-    override fun onNewIntent(intent: Intent) {
-        super.onNewIntent(intent)
-        if (intent.action == ACTION_ENABLE_FREEZE) vm.enable()
-    }
-
-    companion object {
-        const val ACTION_ENABLE_FREEZE = "com.alpwarestudio.chargefreeze.action.ENABLE_FREEZE"
     }
 }
 

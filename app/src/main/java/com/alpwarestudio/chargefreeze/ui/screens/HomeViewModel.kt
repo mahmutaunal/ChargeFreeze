@@ -1,66 +1,201 @@
 package com.alpwarestudio.chargefreeze.ui.screens
 
 import android.app.Application
-import android.content.Intent
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.alpwarestudio.chargefreeze.R
 import com.alpwarestudio.chargefreeze.data.BatteryMonitor
 import com.alpwarestudio.chargefreeze.data.SessionStore
 import com.alpwarestudio.chargefreeze.device.samsung.SamsungChargeController
+import com.alpwarestudio.chargefreeze.domain.FreezeSession
 import com.alpwarestudio.chargefreeze.domain.FreezeState
+import com.alpwarestudio.chargefreeze.domain.SessionPhase
 import com.alpwarestudio.chargefreeze.service.FreezeService
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import kotlin.time.Duration.Companion.milliseconds
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
-class MainViewModel(app: Application) : AndroidViewModel(app) {
+class MainViewModel(private val app: Application) : AndroidViewModel(app) {
     private val battery = BatteryMonitor(app)
     val controller = SamsungChargeController(app)
     private val store = SessionStore(app)
+    private val operationMutex = Mutex()
     private val _battery = MutableStateFlow(battery.snapshot())
     val batteryState = _battery.asStateFlow()
     private val _freeze = MutableStateFlow(FreezeState())
     val freeze = _freeze.asStateFlow()
+    private var transientMessage: String? = null
 
     init {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
+            recoverOrResume()
             while (true) {
-                _battery.value = battery.snapshot(); delay(5_000.milliseconds)
+                _battery.value = battery.snapshot()
+                syncSessionState()
+                delay(2_000)
             }
         }
-        // Fail-safe: a prior interrupted session is restored before accepting a new one.
-        store.loadOriginal()
-            ?.let { original -> controller.restore(original).onSuccess { store.clear() } }
     }
 
     fun enable() {
-        val snapshot = battery.snapshot()
-        val original = controller.readOriginalState() ?: run {
-            _freeze.value =
-                FreezeState(message = "Unable to read battery protection settings"); return
-        }
-        store.saveOriginal(original)
-        controller.beginFreeze(snapshot.level)
-            .onSuccess { threshold ->
-                _freeze.value = FreezeState(true, snapshot.level, threshold, System.currentTimeMillis())
-                FreezeService.start(getApplication(), threshold)
+        viewModelScope.launch(Dispatchers.IO) {
+            operationMutex.withLock {
+                val existing = store.load()
+                if (existing != null) {
+                    if (existing.phase == SessionPhase.ACTIVE) {
+                        FreezeService.start(app)
+                        syncSessionState()
+                    } else {
+                        recover(existing)
+                    }
+                    return@withLock
+                }
+
+                val snapshot = battery.snapshot()
+                when {
+                    !snapshot.plugged || snapshot.source != "USB" -> {
+                        showMessage(app.getString(R.string.usb_required))
+                        return@withLock
+                    }
+                    !controller.isSupported() -> {
+                        showMessage(app.getString(R.string.unsupported))
+                        return@withLock
+                    }
+                    !controller.hasWritePermission() -> {
+                        showMessage(app.getString(R.string.permission_required))
+                        return@withLock
+                    }
+                }
+
+                val original = controller.readOriginalState()
+                if (original == null) {
+                    showMessage(app.getString(R.string.read_settings_failed))
+                    return@withLock
+                }
+                if (!store.savePreparing(original, snapshot.level)) {
+                    showMessage(app.getString(R.string.session_write_failed))
+                    return@withLock
+                }
+
+                val beginResult = controller.beginFreeze(snapshot.level)
+                if (beginResult.isFailure) {
+                    rollback(original, beginResult.exceptionOrNull()?.message)
+                    return@withLock
+                }
+
+                val threshold = beginResult.getOrThrow()
+                if (!store.markActive(threshold)) {
+                    rollback(original, app.getString(R.string.session_write_failed))
+                    return@withLock
+                }
+
+                runCatching { FreezeService.start(app) }
+                    .onSuccess {
+                        transientMessage = null
+                        syncSessionState()
+                    }
+                    .onFailure { rollback(original, it.message) }
             }
-            .onFailure { _freeze.value = FreezeState(message = it.message); store.clear() }
+        }
     }
 
     fun disable() {
-        getApplication<Application>().stopService(
-            Intent(
-                getApplication(),
-                FreezeService::class.java
-            )
-        )
-        val original = store.loadOriginal()
-        if (original != null) controller.restore(original).onSuccess { store.clear() }
-        _freeze.value = FreezeState()
+        viewModelScope.launch(Dispatchers.IO) {
+            operationMutex.withLock {
+                if (store.load() == null) {
+                    showMessage(app.getString(R.string.no_active_session))
+                } else {
+                    showMessage(app.getString(R.string.restoring_settings))
+                    runCatching { FreezeService.stop(app) }
+                        .onFailure { recover(store.load()) }
+                }
+            }
+        }
     }
 
-    fun restore() = disable()
+    fun restore() {
+        viewModelScope.launch(Dispatchers.IO) {
+            operationMutex.withLock { recover(store.load()) }
+        }
+    }
+
+    private fun recoverOrResume() {
+        val session = store.load() ?: return
+        if (session.phase == SessionPhase.ACTIVE) {
+            runCatching { FreezeService.start(app) }
+                .onFailure { recover(session) }
+            syncSessionState()
+        } else {
+            recover(session)
+        }
+    }
+
+    private fun recover(session: FreezeSession?) {
+        if (session == null) {
+            syncSessionState()
+            return
+        }
+        store.markRestoring()
+        controller.restore(session.original)
+            .onSuccess {
+                store.clear()
+                showMessage(app.getString(R.string.recovery_completed))
+            }
+            .onFailure {
+                val message = app.getString(
+                    R.string.restore_failed_format,
+                    it.message ?: app.getString(R.string.unknown_error)
+                )
+                store.markRecoveryRequired(message)
+                showMessage(message)
+            }
+    }
+
+    private fun rollback(
+        original: com.alpwarestudio.chargefreeze.domain.OriginalBatteryProtection,
+        cause: String?
+    ) {
+        controller.restore(original)
+            .onSuccess {
+                store.clear()
+                showMessage(cause ?: app.getString(R.string.freeze_start_failed))
+            }
+            .onFailure {
+                val message = app.getString(
+                    R.string.rollback_failed_format,
+                    cause ?: app.getString(R.string.unknown_error),
+                    it.message ?: app.getString(R.string.unknown_error)
+                )
+                store.markRecoveryRequired(message)
+                showMessage(message)
+            }
+    }
+
+    private fun syncSessionState() {
+        val session = store.load()
+        _freeze.value = if (session?.phase == SessionPhase.ACTIVE) {
+            FreezeState(
+                active = true,
+                startLevel = session.startLevel,
+                currentThreshold = session.currentThreshold,
+                startedAtMillis = session.startedAtMillis,
+                recoveryRequired = false,
+                message = transientMessage
+            )
+        } else {
+            FreezeState(
+                recoveryRequired = session != null,
+                message = session?.message ?: transientMessage
+            )
+        }
+    }
+
+    private fun showMessage(message: String?) {
+        transientMessage = message
+        syncSessionState()
+    }
 }

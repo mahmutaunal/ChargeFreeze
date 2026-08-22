@@ -61,6 +61,12 @@ android {
             )
         }
     }
+
+    bundle {
+        language {
+            enableSplit = false
+        }
+    }
 }
 
 kotlin {
@@ -76,4 +82,5 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.11.0")
     implementation("androidx.datastore:datastore-preferences:1.2.1")
     implementation("androidx.core:core-ktx:1.19.0")
+    testImplementation("junit:junit:4.13.2")
 }

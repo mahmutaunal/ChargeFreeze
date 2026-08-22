@@ -1,6 +1,5 @@
 <resources>
     <string name="app_name">ChargeFreeze</string>
-    <string name="tagline">Keep connected, stop charging.</string>
     <string name="enable_freeze">Enable Freeze</string>
     <string name="stop_freeze">Stop Freeze</string>
     <string name="freeze_active">Freeze Active</string>
@@ -18,7 +17,7 @@
     <string name="notification_title">ChargeFreeze is active</string>
     <string name="notification_text">Battery protection is being maintained.</string>
     <string name="usb_prompt_title">USB connected</string>
-    <string name="usb_prompt_text">Tap to enable Charge Freeze.</string>
+    <string name="usb_prompt_text">Tap to open ChargeFreeze and review activation.</string>
     <string name="usb_connected">USB Connected</string>
     <string name="ac_connected">Power Connected</string>
     <string name="wireless_connected">Wireless Connected</string>
@@ -29,7 +28,6 @@
     <string name="paused">Paused</string>
     <string name="disconnected">Disconnected</string>
     <string name="started_at">Started At</string>
-    <string name="this_session">This session</string>
     <string name="start_level">Start Level</string>
     <string name="current_level">Current Level</string>
     <string name="charge_status">Charge Status</string>
@@ -51,16 +49,13 @@
     <string name="system_default">System default</string>
     <string name="light">Light</string>
     <string name="dark">Dark</string>
-    <string name="start_on_usb_connect">Start on USB connect</string>
-    <string name="start_on_usb_connect_subtitle">Ask before enabling freeze</string>
+    <string name="start_on_usb_connect">USB accessory prompt</string>
+    <string name="start_on_usb_connect_subtitle">Ask when Android receives a supported USB accessory event</string>
     <string name="show_persistent_notification">Show persistent notification</string>
     <string name="persistent_notification_subtitle">Detailed status notification; Android may still show the required service indicator</string>
     <string name="freeze_section">Freeze</string>
     <string name="freeze_margin">Freeze margin</string>
     <string name="freeze_margin_subtitle">Keep the threshold below the current battery level</string>
-    <string name="strategy_subtitle">Choose how ChargeFreeze maintains the limit</string>
-    <string name="auto_recommended">Auto (Recommended)</string>
-    <string name="native_hold">Native Hold</string>
     <string name="access">Access</string>
     <string name="write_secure_settings">WRITE_SECURE_SETTINGS</string>
     <string name="permission_granted_subtitle">Ready to control supported battery protection settings</string>
@@ -79,7 +74,7 @@
     <string name="settings_footer">ChargeFreeze • Offline • No ads • No analytics</string>
     <string name="device">Device</string>
     <string name="android">Android</string>
-    <string name="one_ui">One UI</string>
+    <string name="firmware_build">Firmware Build</string>
     <string name="backend">Backend</string>
     <string name="permission">Permission</string>
     <string name="samsung_support">Samsung Support</string>
@@ -92,4 +87,19 @@
     <string name="copy_diagnostics">Copy Diagnostics</string>
     <string name="back">Back</string>
     <string name="cancel">Cancel</string>
+    <string name="usb_required">Connect the phone to USB power before enabling Freeze.</string>
+    <string name="read_settings_failed">Unable to read all required battery-protection settings.</string>
+    <string name="session_write_failed">The recovery record could not be saved. No unsafe change was kept.</string>
+    <string name="freeze_start_failed">Charge Freeze could not be started.</string>
+    <string name="freeze_stopped">Charge Freeze stopped and the original settings were restored.</string>
+    <string name="recovery_completed">The interrupted session was recovered and the original settings were restored.</string>
+    <string name="usb_disconnected_restored">USB was disconnected. The original settings were restored.</string>
+    <string name="maintenance_failed">Charge Freeze maintenance failed.</string>
+    <string name="charging_not_paused">This firmware continued charging after the verified setting change. The original settings were restored.</string>
+    <string name="restore_failed_format">Original settings could not be restored: %1$s</string>
+    <string name="rollback_failed_format">Start failed (%1$s) and rollback also failed (%2$s). Use Restore original settings.</string>
+    <string name="unknown_error">Unknown error</string>
+    <string name="no_active_session">There is no active Freeze session.</string>
+    <string name="restoring_settings">Restoring original battery-protection settings…</string>
+    <string name="restore_original_settings">Restore original settings</string>
 </resources>
