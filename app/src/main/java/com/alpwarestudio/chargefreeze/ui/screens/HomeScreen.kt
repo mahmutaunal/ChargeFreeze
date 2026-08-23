@@ -43,13 +43,6 @@ import com.alpwarestudio.chargefreeze.domain.FreezeState
 import java.text.DateFormat
 import java.util.Date
 
-private val ActiveGreenStart = Color(0xFF0C6D25)
-private val ActiveGreenEnd = Color(0xFF258D16)
-private val ActionTeal = Color(0xFF10B993)
-private val ActionGreen = Color(0xFF18A843)
-private val DangerStart = Color(0xFFD92735)
-private val DangerEnd = Color(0xFFEE4147)
-
 @Composable
 fun HomeScreen(vm: MainViewModel, onSettings: () -> Unit) {
     val battery by vm.batteryState.collectAsStateWithLifecycle()
@@ -146,7 +139,7 @@ private fun IdleDashboard(
             CompactMetric(
                 Modifier.weight(1f), Icons.Default.Thermostat,
                 stringResource(R.string.temperature), "%.1f °C".format(battery.temperatureC),
-                Color(0xFFFFAA16)
+                MaterialTheme.colorScheme.tertiary
             )
             CompactMetric(
                 Modifier.weight(1f), Icons.Default.Favorite,
@@ -162,10 +155,11 @@ private fun IdleDashboard(
             )
             !supported -> StatusNotice(stringResource(R.string.unsupported), false)
             !hasPermission -> PermissionPanel()
-            else -> GradientAction(
+            else -> FilledAction(
                 stringResource(R.string.enable_freeze),
                 Icons.Default.AcUnit,
-                listOf(ActionTeal, ActionGreen),
+                MaterialTheme.colorScheme.primary,
+                MaterialTheme.colorScheme.onPrimary,
                 onEnable
             )
         }
@@ -196,14 +190,15 @@ private fun ActiveSession(battery: BatterySnapshot, freeze: FreezeState, onStop:
                     Icons.Default.AcUnit,
                     stringResource(R.string.strategy),
                     stringResource(R.string.moving_threshold),
-                    Color(0xFFFFA900)
+                    MaterialTheme.colorScheme.tertiary
                 )
             )
         )
-        GradientAction(
+        FilledAction(
             stringResource(R.string.stop_freeze),
             Icons.Default.PauseCircle,
-            listOf(DangerStart, DangerEnd),
+            MaterialTheme.colorScheme.error,
+            MaterialTheme.colorScheme.onError,
             onStop
         )
     }
@@ -214,23 +209,35 @@ private fun ActiveBanner(freeze: FreezeState) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Brush.horizontalGradient(listOf(ActiveGreenStart, ActiveGreenEnd)), RoundedCornerShape(18.dp))
-            .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(18.dp))
+            .background(MaterialTheme.colorScheme.primaryContainer, MaterialTheme.shapes.large)
+            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, MaterialTheme.shapes.large)
             .padding(horizontal = 16.dp, vertical = 15.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
-            modifier = Modifier.size(48.dp).background(Color.White.copy(alpha = 0.16f), CircleShape),
+            modifier = Modifier.size(48.dp).background(
+                MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.12f),
+                CircleShape
+            ),
             contentAlignment = Alignment.Center
         ) {
-            Icon(Icons.Default.AcUnit, null, tint = Color.White, modifier = Modifier.size(28.dp))
+            Icon(
+                Icons.Default.AcUnit,
+                null,
+                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                modifier = Modifier.size(28.dp)
+            )
         }
         Spacer(Modifier.width(14.dp))
         Column {
-            Text(stringResource(R.string.freeze_active), color = Color.White, style = MaterialTheme.typography.titleLarge)
+            Text(
+                stringResource(R.string.freeze_active),
+                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                style = MaterialTheme.typography.titleLarge
+            )
             Text(
                 "${stringResource(R.string.freeze_started)} • ${formatStartTime(freeze.startedAtMillis)}",
-                color = Color.White.copy(alpha = 0.78f),
+                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.78f),
                 style = MaterialTheme.typography.bodySmall
             )
         }
@@ -391,24 +398,25 @@ private fun DetailPanel(rows: List<DetailItem>) {
 }
 
 @Composable
-private fun GradientAction(
+private fun FilledAction(
     text: String,
     icon: ImageVector,
-    colors: List<Color>,
+    containerColor: Color,
+    contentColor: Color,
     onClick: () -> Unit
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(54.dp)
-            .background(Brush.horizontalGradient(colors), RoundedCornerShape(15.dp))
-            .clickable(role = Role.Button, onClick = onClick),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.Center
+    Button(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth().height(54.dp),
+        shape = MaterialTheme.shapes.medium,
+        colors = ButtonDefaults.buttonColors(
+            containerColor = containerColor,
+            contentColor = contentColor
+        )
     ) {
-        Icon(icon, null, tint = Color.White, modifier = Modifier.size(22.dp))
+        Icon(icon, null, modifier = Modifier.size(22.dp))
         Spacer(Modifier.width(9.dp))
-        Text(text, color = Color.White, style = MaterialTheme.typography.labelLarge)
+        Text(text, style = MaterialTheme.typography.labelLarge)
     }
 }
 

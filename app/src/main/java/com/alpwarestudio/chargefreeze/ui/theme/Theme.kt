@@ -1,63 +1,20 @@
 package com.alpwarestudio.chargefreeze.ui.theme
 
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Shapes
 import androidx.compose.material3.Typography
-import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.lightColorScheme
+import androidx.compose.material3.dynamicDarkColorScheme
+import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.alpwarestudio.chargefreeze.data.ThemeMode
-
-private val DarkScheme = darkColorScheme(
-    primary = Color(0xFF24D1B5),
-    onPrimary = Color(0xFF00251F),
-    primaryContainer = Color(0xFF0C433A),
-    onPrimaryContainer = Color(0xFFB1F5E8),
-    secondary = Color(0xFF55D86B),
-    onSecondary = Color(0xFF06250C),
-    secondaryContainer = Color(0xFF173D20),
-    onSecondaryContainer = Color(0xFFC0F4C7),
-    background = Color(0xFF071117),
-    onBackground = Color(0xFFF3F7F8),
-    surface = Color(0xFF0D1A22),
-    onSurface = Color(0xFFF3F7F8),
-    surfaceVariant = Color(0xFF12232C),
-    onSurfaceVariant = Color(0xFFAFBEC5),
-    outline = Color(0xFF2B3E48),
-    outlineVariant = Color(0xFF1D3039),
-    error = Color(0xFFFF4D58),
-    onError = Color.White,
-    errorContainer = Color(0xFF4C1E24),
-    onErrorContainer = Color(0xFFFFDADD)
-)
-
-private val LightScheme = lightColorScheme(
-    primary = Color(0xFF159A3B),
-    onPrimary = Color.White,
-    primaryContainer = Color(0xFFD8F5DD),
-    onPrimaryContainer = Color(0xFF092E11),
-    secondary = Color(0xFF1AB795),
-    onSecondary = Color.White,
-    secondaryContainer = Color(0xFFD0F5EC),
-    onSecondaryContainer = Color(0xFF07382E),
-    background = Color(0xFFF7F8F6),
-    onBackground = Color(0xFF151B17),
-    surface = Color(0xFFFFFFFF),
-    onSurface = Color(0xFF151B17),
-    surfaceVariant = Color(0xFFF0F3F0),
-    onSurfaceVariant = Color(0xFF606A63),
-    outline = Color(0xFFD3DAD4),
-    outlineVariant = Color(0xFFE5E9E5),
-    error = Color(0xFFD92F3B),
-    onError = Color.White,
-    errorContainer = Color(0xFFFFDADC),
-    onErrorContainer = Color(0xFF5A1119)
-)
 
 private val ChargeFreezeTypography = Typography(
     headlineSmall = TextStyle(
@@ -116,6 +73,14 @@ private val ChargeFreezeTypography = Typography(
     )
 )
 
+private val ChargeFreezeShapes = Shapes(
+    extraSmall = RoundedCornerShape(8.dp),
+    small = RoundedCornerShape(12.dp),
+    medium = RoundedCornerShape(16.dp),
+    large = RoundedCornerShape(24.dp),
+    extraLarge = RoundedCornerShape(32.dp)
+)
+
 @Composable
 fun ChargeFreezeTheme(
     themeMode: ThemeMode = ThemeMode.SYSTEM,
@@ -126,9 +91,18 @@ fun ChargeFreezeTheme(
         ThemeMode.LIGHT -> false
         ThemeMode.DARK -> true
     }
+    val context = LocalContext.current
+    // ChargeFreeze supports API 31+, so Material You colors are available on
+    // every supported device and follow the user's wallpaper palette.
+    val colorScheme = if (dark) {
+        dynamicDarkColorScheme(context)
+    } else {
+        dynamicLightColorScheme(context)
+    }
     MaterialTheme(
-        colorScheme = if (dark) DarkScheme else LightScheme,
+        colorScheme = colorScheme,
         typography = ChargeFreezeTypography,
+        shapes = ChargeFreezeShapes,
         content = content
     )
 }
