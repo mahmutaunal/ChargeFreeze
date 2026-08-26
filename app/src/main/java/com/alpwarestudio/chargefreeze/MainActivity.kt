@@ -2,7 +2,6 @@ package com.alpwarestudio.chargefreeze
 
 import android.content.Context
 import android.os.Bundle
-import androidx.activity.BackEventCompat
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.PredictiveBackHandler
 import androidx.activity.compose.setContent
@@ -28,7 +27,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -109,7 +107,6 @@ private fun AppNavigation(
     val screen = AppScreen.entries.firstOrNull { it.name == screenName } ?: AppScreen.HOME
     val backProgress = remember { Animatable(0f) }
     var backInProgress by remember { mutableStateOf(false) }
-    var backEdge by remember { mutableIntStateOf(BackEventCompat.EDGE_LEFT) }
     var skipNextTransition by remember { mutableStateOf(false) }
 
     fun navigate(destination: AppScreen) {
@@ -124,14 +121,13 @@ private fun AppNavigation(
         try {
             backInProgress = true
             events.collect { event ->
-                backEdge = event.swipeEdge
                 backProgress.snapTo(event.progress.coerceIn(0f, 1f))
             }
             skipNextTransition = true
             screen.parent?.let { screenName = it.name }
             backProgress.snapTo(0f)
             backInProgress = false
-        } catch (cancelled: CancellationException) {
+        } catch (_: CancellationException) {
             backProgress.animateTo(0f, tween(180, easing = FastOutSlowInEasing))
             backInProgress = false
         }
@@ -172,13 +168,12 @@ private fun AppNavigation(
                 .fillMaxSize()
                 .graphicsLayer {
                     val progress = backProgress.value
-                    val direction = if (backEdge == BackEventCompat.EDGE_LEFT) 1f else -1f
-                    translationX = size.width * 0.12f * progress * direction
+                    translationX = size.width * 0.12f * progress
                     val scale = 1f - (0.08f * progress)
                     scaleX = scale
                     scaleY = scale
                     transformOrigin = TransformOrigin(
-                        pivotFractionX = if (direction > 0) 1f else 0f,
+                        pivotFractionX = 1f,
                         pivotFractionY = 0.5f
                     )
                     shape = RoundedCornerShape((28f * progress).dp)
