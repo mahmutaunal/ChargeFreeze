@@ -102,4 +102,11 @@
     <string name="no_active_session">There is no active Freeze session.</string>
     <string name="restoring_settings">Restoring original battery-protection settings…</string>
     <string name="restore_original_settings">Restore original settings</string>
+    <string name="resume_charge_level">Resume charging at</string>
+    <string name="resume_charge_level_subtitle">Stop freezing and restore normal charging when the battery reaches this level</string>
+    <string name="resume_level_must_be_lower">Resume level (%1$d%%) must be below the current battery level (%2$d%%).</string>
+    <string name="resume_level_reached">Battery reached %1$d%%. Freeze stopped and the original charging settings were restored.</string>
+    <string name="notification_events_channel">ChargeFreeze events</string>
+    <string name="resume_notification_title">Normal charging restored</string>
+    <string name="resume_notification_text">Battery reached %1$d%%. ChargeFreeze was disabled and normal charging resumed.</string>
 </resources>

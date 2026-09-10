@@ -12,13 +12,18 @@ class SessionStore(context: Context) {
     private val prefs = context.getSharedPreferences("chargefreeze_session", Context.MODE_PRIVATE)
 
     @Synchronized
-    fun savePreparing(s: OriginalBatteryProtection, startLevel: Int): Boolean =
+    fun savePreparing(
+        s: OriginalBatteryProtection,
+        startLevel: Int,
+        resumeChargeLevel: Int
+    ): Boolean =
         write(
             FreezeSession(
                 phase = SessionPhase.PREPARING,
                 original = s,
                 startLevel = startLevel,
                 currentThreshold = startLevel,
+                resumeChargeLevel = resumeChargeLevel.coerceIn(5, 95),
                 startedAtMillis = System.currentTimeMillis()
             )
         )
@@ -44,6 +49,7 @@ class SessionStore(context: Context) {
             original = original,
             startLevel = prefs.getInt("start_level", original.threshold).coerceIn(0, 100),
             currentThreshold = prefs.getInt("current_threshold", original.threshold).coerceIn(0, 100),
+            resumeChargeLevel = prefs.getInt("resume_charge_level", 30).coerceIn(5, 95),
             startedAtMillis = prefs.getLong("started_at", System.currentTimeMillis()),
             message = prefs.getString("message", null)
         )
@@ -84,6 +90,7 @@ class SessionStore(context: Context) {
         .putInt("recharge", session.original.rechargeLevel)
         .putInt("start_level", session.startLevel)
         .putInt("current_threshold", session.currentThreshold)
+        .putInt("resume_charge_level", session.resumeChargeLevel)
         .putLong("started_at", session.startedAtMillis)
         .putString("message", session.message)
         .commit()

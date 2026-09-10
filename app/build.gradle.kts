@@ -4,7 +4,7 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
-android {
+extensions.configure<com.android.build.api.dsl.ApplicationExtension>("android") {
     namespace = "com.alpwarestudio.chargefreeze"
     compileSdk = 37
 
@@ -12,7 +12,7 @@ android {
         applicationId = "com.alpwarestudio.chargefreeze"
         minSdk = 31
         targetSdk = 37
-        versionCode = 3
+        versionCode = 5
         versionName = "1.0.0"
     }
 
@@ -61,12 +61,6 @@ android {
             )
         }
     }
-
-    bundle {
-        language {
-            enableSplit = false
-        }
-    }
 }
 
 kotlin {
@@ -74,7 +68,7 @@ kotlin {
 }
 
 dependencies {
-    implementation(platform("androidx.compose:compose-bom:2026.08.00"))
+    implementation(platform("androidx.compose:compose-bom:2026.09.00"))
     implementation("androidx.activity:activity-compose:1.13.0")
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-extended")

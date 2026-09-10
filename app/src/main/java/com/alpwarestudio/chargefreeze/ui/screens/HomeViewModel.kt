@@ -4,23 +4,28 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.alpwarestudio.chargefreeze.R
+import com.alpwarestudio.chargefreeze.data.AppPreferences
 import com.alpwarestudio.chargefreeze.data.BatteryMonitor
 import com.alpwarestudio.chargefreeze.data.SessionStore
+import com.alpwarestudio.chargefreeze.data.UsbConnectionMonitor
 import com.alpwarestudio.chargefreeze.device.samsung.SamsungChargeController
 import com.alpwarestudio.chargefreeze.domain.FreezeSession
 import com.alpwarestudio.chargefreeze.domain.FreezeState
 import com.alpwarestudio.chargefreeze.domain.SessionPhase
 import com.alpwarestudio.chargefreeze.service.FreezeService
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlin.time.Duration.Companion.milliseconds
 
 class MainViewModel(private val app: Application) : AndroidViewModel(app) {
     private val battery = BatteryMonitor(app)
+    private val usb = UsbConnectionMonitor(app)
     val controller = SamsungChargeController(app)
     private val store = SessionStore(app)
     private val operationMutex = Mutex()
@@ -29,6 +34,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
     private val _freeze = MutableStateFlow(FreezeState())
     val freeze = _freeze.asStateFlow()
     private var transientMessage: String? = null
+    private var transientMessageJob: Job? = null
 
     init {
         viewModelScope.launch(Dispatchers.IO) {
@@ -36,7 +42,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
             while (true) {
                 _battery.value = battery.snapshot()
                 syncSessionState()
-                delay(2_000)
+                delay(2_000.milliseconds)
             }
         }
     }
@@ -57,7 +63,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
 
                 val snapshot = battery.snapshot()
                 when {
-                    !snapshot.plugged || snapshot.source != "USB" -> {
+                    !snapshot.plugged || !usb.isConnected() -> {
                         showMessage(app.getString(R.string.usb_required))
                         return@withLock
                     }
@@ -71,12 +77,24 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                     }
                 }
 
+                val resumeChargeLevel = AppPreferences(app).resumeChargeLevel
+                if (snapshot.level <= resumeChargeLevel) {
+                    showMessage(
+                        app.getString(
+                            R.string.resume_level_must_be_lower,
+                            resumeChargeLevel,
+                            snapshot.level
+                        )
+                    )
+                    return@withLock
+                }
+
                 val original = controller.readOriginalState()
                 if (original == null) {
                     showMessage(app.getString(R.string.read_settings_failed))
                     return@withLock
                 }
-                if (!store.savePreparing(original, snapshot.level)) {
+                if (!store.savePreparing(original, snapshot.level, resumeChargeLevel)) {
                     showMessage(app.getString(R.string.session_write_failed))
                     return@withLock
                 }
@@ -182,6 +200,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                 active = true,
                 startLevel = session.startLevel,
                 currentThreshold = session.currentThreshold,
+                resumeChargeLevel = session.resumeChargeLevel,
                 startedAtMillis = session.startedAtMillis,
                 recoveryRequired = false,
                 message = transientMessage
@@ -195,7 +214,22 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
     }
 
     private fun showMessage(message: String?) {
+        transientMessageJob?.cancel()
         transientMessage = message
         syncSessionState()
+
+        if (message != null) {
+            transientMessageJob = viewModelScope.launch {
+                delay(TRANSIENT_MESSAGE_DURATION_MS.milliseconds)
+                if (transientMessage == message) {
+                    transientMessage = null
+                    syncSessionState()
+                }
+            }
+        }
+    }
+
+    companion object {
+        private const val TRANSIENT_MESSAGE_DURATION_MS = 4_000L
     }
 }

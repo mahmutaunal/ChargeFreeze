@@ -102,4 +102,11 @@
     <string name="no_active_session">Aktif bir dondurma oturumu yok.</string>
     <string name="restoring_settings">Orijinal pil koruma ayarları geri yükleniyor…</string>
     <string name="restore_original_settings">Orijinal ayarları geri yükle</string>
+    <string name="resume_charge_level">Şarja yeniden başla</string>
+    <string name="resume_charge_level_subtitle">Pil bu seviyeye ulaştığında dondurmayı durdur ve normal şarj ayarlarını geri yükle</string>
+    <string name="resume_level_must_be_lower">Yeniden şarj seviyesi (%%%1$d), mevcut pil seviyesinden (%%%2$d) düşük olmalı.</string>
+    <string name="resume_level_reached">Pil %%%1$d seviyesine ulaştı. Dondurma durduruldu ve orijinal şarj ayarları geri yüklendi.</string>
+    <string name="notification_events_channel">ChargeFreeze olayları</string>
+    <string name="resume_notification_title">Normal şarj geri açıldı</string>
+    <string name="resume_notification_text">Pil %%%1$d seviyesine ulaştı. ChargeFreeze devre dışı bırakıldı ve normal şarj yeniden başladı.</string>
 </resources>

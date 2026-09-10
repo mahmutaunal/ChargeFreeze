@@ -55,6 +55,9 @@ class SamsungChargeController(private val context: Context) : ChargeController {
         check(isSupported()) { "Unsupported Samsung firmware" }
         check(hasWritePermission()) { "WRITE_SECURE_SETTINGS is not granted" }
         // Keep a small margin below the current level. This avoids immediate charge oscillation.
+        // Write the threshold before entering Maximum mode. Samsung Device Care follows the same
+        // effective sequence: when Maximum is activated, BatteryService consumes the stored
+        // battery_protection_threshold and cuts charging if the current level is above it.
         val target = FreezePolicy.targetFor(level, AppPreferences(context).freezeMargin)
         writeVerified(thresholdKey, target)
         writeVerified(modeKey, MODE_MAXIMUM)
@@ -99,6 +102,6 @@ class SamsungChargeController(private val context: Context) : ChargeController {
     }
 
     private companion object {
-        const val MODE_MAXIMUM = 3 // Observed on current Samsung firmware; verified after writing.
+        const val MODE_MAXIMUM = 1 // Verified from Samsung Device Care: Maximum click changes protect_battery 3 -> 1.
     }
 }

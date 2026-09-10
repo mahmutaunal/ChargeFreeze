@@ -19,6 +19,7 @@ data class FreezeState(
     val active: Boolean = false,
     val startLevel: Int? = null,
     val currentThreshold: Int? = null,
+    val resumeChargeLevel: Int? = null,
     val startedAtMillis: Long? = null,
     val recoveryRequired: Boolean = false,
     val message: String? = null
@@ -36,6 +37,7 @@ data class FreezeSession(
     val original: OriginalBatteryProtection,
     val startLevel: Int,
     val currentThreshold: Int,
+    val resumeChargeLevel: Int,
     val startedAtMillis: Long,
     val message: String? = null
 )

@@ -15,7 +15,7 @@ import androidx.core.content.ContextCompat
 import com.alpwarestudio.chargefreeze.MainActivity
 import com.alpwarestudio.chargefreeze.R
 import com.alpwarestudio.chargefreeze.data.AppPreferences
-import com.alpwarestudio.chargefreeze.data.BatteryMonitor
+import com.alpwarestudio.chargefreeze.data.UsbConnectionMonitor
 
 /**
  * Offers Charge Freeze when USB power is connected and the user opted in.
@@ -25,7 +25,7 @@ class UsbConnectReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent?) {
         if (intent?.action !in SUPPORTED_ACTIONS) return
         if (!AppPreferences(context).startOnUsbConnect) return
-        if (BatteryMonitor(context).snapshot().source != "USB") return
+        if (!UsbConnectionMonitor(context).isConnected()) return
         if (Build.VERSION.SDK_INT >= 33 && ContextCompat.checkSelfPermission(
                 context,
                 Manifest.permission.POST_NOTIFICATIONS
@@ -62,7 +62,8 @@ class UsbConnectReceiver : BroadcastReceiver() {
     private companion object {
         val SUPPORTED_ACTIONS = setOf(
             UsbManager.ACTION_USB_DEVICE_ATTACHED,
-            UsbManager.ACTION_USB_ACCESSORY_ATTACHED
+            UsbManager.ACTION_USB_ACCESSORY_ATTACHED,
+            Intent.ACTION_POWER_CONNECTED
         )
         const val CHANNEL_ID = "usb_freeze_prompt"
         const val NOTIFICATION_ID = 43

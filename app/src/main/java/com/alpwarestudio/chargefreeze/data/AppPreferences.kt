@@ -27,6 +27,10 @@ class AppPreferences(context: Context) {
         get() = prefs.getInt(KEY_FREEZE_MARGIN, 2)
         set(value) = prefs.edit { putInt(KEY_FREEZE_MARGIN, value.coerceIn(1, 5)) }
 
+    var resumeChargeLevel: Int
+        get() = prefs.getInt(KEY_RESUME_CHARGE_LEVEL, 30)
+        set(value) = prefs.edit { putInt(KEY_RESUME_CHARGE_LEVEL, value.coerceIn(5, 95)) }
+
     companion object {
         private const val FILE_NAME = "chargefreeze_preferences"
         private const val KEY_THEME = "theme_mode"
@@ -34,6 +38,7 @@ class AppPreferences(context: Context) {
         private const val KEY_USB_START = "start_on_usb_connect"
         private const val KEY_PERSISTENT_NOTIFICATION = "show_persistent_notification"
         private const val KEY_FREEZE_MARGIN = "freeze_margin"
+        private const val KEY_RESUME_CHARGE_LEVEL = "resume_charge_level"
     }
 }
 

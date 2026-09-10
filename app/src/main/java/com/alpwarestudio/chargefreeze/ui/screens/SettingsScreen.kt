@@ -61,6 +61,7 @@ fun SettingsScreen(
     var usbPrompt by remember { mutableStateOf(preferences.startOnUsbConnect) }
     var detailedNotification by remember { mutableStateOf(preferences.showPersistentNotification) }
     var margin by remember { mutableIntStateOf(preferences.freezeMargin) }
+    var resumeChargeLevel by remember { mutableIntStateOf(preferences.resumeChargeLevel) }
     var dialog by remember { mutableStateOf<SettingsDialog?>(null) }
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -119,6 +120,14 @@ fun SettingsScreen(
                 "$margin%",
                 stringResource(R.string.freeze_margin_subtitle),
                 onClick = { dialog = SettingsDialog.MARGIN }
+            )
+            GroupDivider()
+            ValueRow(
+                Icons.Default.BatteryChargingFull,
+                stringResource(R.string.resume_charge_level),
+                "$resumeChargeLevel%",
+                stringResource(R.string.resume_charge_level_subtitle),
+                onClick = { dialog = SettingsDialog.RESUME_LEVEL }
             )
             GroupDivider()
             ValueRow(
@@ -215,6 +224,16 @@ fun SettingsScreen(
             preferences.freezeMargin = it
             dialog = null
         }
+        SettingsDialog.RESUME_LEVEL -> ChoiceDialog(
+            stringResource(R.string.resume_charge_level),
+            (5..95 step 5).map { it to "$it%" },
+            resumeChargeLevel,
+            { dialog = null }
+        ) {
+            resumeChargeLevel = it
+            preferences.resumeChargeLevel = it
+            dialog = null
+        }
         null -> Unit
     }
 }
@@ -237,6 +256,7 @@ fun DiagnosticsScreen(vm: MainViewModel, onBack: () -> Unit) {
             appendLine("Permission: ${if (permission) "Granted" else "Required"}")
             appendLine("Samsung support: ${if (supported) "Supported" else "Unsupported"}")
             appendLine("Freeze active: ${freeze.active}")
+            appendLine("Resume charging at: ${freeze.resumeChargeLevel ?: AppPreferences(context).resumeChargeLevel}%")
             appendLine("Battery: ${battery.level}%")
             appendLine("Charging: ${battery.isCharging}")
             appendLine("Power source: ${battery.source}")
@@ -535,7 +555,12 @@ private fun <T> ChoiceDialog(
         shape = RoundedCornerShape(20.dp),
         title = { Text(title) },
         text = {
-            Column {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 420.dp)
+                    .verticalScroll(rememberScrollState())
+            ) {
                 choices.forEach { (value, label) ->
                     Row(
                         modifier = Modifier.fillMaxWidth().clickable { onSelect(value) }.padding(vertical = 13.dp),
@@ -571,7 +596,7 @@ private fun themeLabel(mode: ThemeMode): String = when (mode) {
 
 private fun firmwareBuild(): String = Build.DISPLAY.takeIf { it.isNotBlank() } ?: "—"
 
-private enum class SettingsDialog { LANGUAGE, THEME, MARGIN }
+private enum class SettingsDialog { LANGUAGE, THEME, MARGIN, RESUME_LEVEL }
 
 private const val PROJECT_URL = "https://github.com/mahmutaunal/ChargeFreeze"
 private const val ALPWARE_URL = "https://alpwarestudio.com"

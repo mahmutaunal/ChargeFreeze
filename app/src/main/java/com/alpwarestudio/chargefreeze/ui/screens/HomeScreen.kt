@@ -56,27 +56,55 @@ fun HomeScreen(vm: MainViewModel, onSettings: () -> Unit) {
                 .fillMaxSize()
                 .statusBarsPadding()
                 .navigationBarsPadding()
-                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 20.dp)
-                .padding(top = 8.dp, bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+                .padding(top = 8.dp, bottom = 16.dp)
         ) {
             HomeHeader(active = freeze.active, onSettings = onSettings)
-            AnimatedContent(targetState = freeze.active, label = "freeze-content") { active ->
-                if (active) {
-                    ActiveSession(battery, freeze, vm::disable)
+
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                AnimatedContent(targetState = freeze.active, label = "freeze-content") { active ->
+                    if (active) {
+                        ActiveSession(battery, freeze)
+                    } else {
+                        IdleDashboard(
+                            battery = battery,
+                            supported = supported,
+                            hasPermission = hasPermission,
+                            recoveryRequired = freeze.recoveryRequired,
+                            onRestore = vm::restore
+                        )
+                    }
+                }
+                freeze.message?.let { StatusNotice(it, isError = freeze.recoveryRequired) }
+                Spacer(Modifier.height(4.dp))
+            }
+
+            if (freeze.active || (supported && hasPermission && !freeze.recoveryRequired)) {
+                Spacer(Modifier.height(12.dp))
+                if (freeze.active) {
+                    FilledAction(
+                        stringResource(R.string.stop_freeze),
+                        Icons.Default.PauseCircle,
+                        MaterialTheme.colorScheme.error,
+                        MaterialTheme.colorScheme.onError,
+                        vm::disable
+                    )
                 } else {
-                    IdleDashboard(
-                        battery = battery,
-                        supported = supported,
-                        hasPermission = hasPermission,
-                        recoveryRequired = freeze.recoveryRequired,
-                        onEnable = vm::enable,
-                        onRestore = vm::restore
+                    FilledAction(
+                        stringResource(R.string.enable_freeze),
+                        Icons.Default.AcUnit,
+                        MaterialTheme.colorScheme.primary,
+                        MaterialTheme.colorScheme.onPrimary,
+                        vm::enable
                     )
                 }
             }
-            freeze.message?.let { StatusNotice(it, isError = freeze.recoveryRequired) }
         }
     }
 }
@@ -118,7 +146,6 @@ private fun IdleDashboard(
     supported: Boolean,
     hasPermission: Boolean,
     recoveryRequired: Boolean,
-    onEnable: () -> Unit,
     onRestore: () -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -155,19 +182,13 @@ private fun IdleDashboard(
             )
             !supported -> StatusNotice(stringResource(R.string.unsupported), false)
             !hasPermission -> PermissionPanel()
-            else -> FilledAction(
-                stringResource(R.string.enable_freeze),
-                Icons.Default.AcUnit,
-                MaterialTheme.colorScheme.primary,
-                MaterialTheme.colorScheme.onPrimary,
-                onEnable
-            )
+            else -> Unit
         }
     }
 }
 
 @Composable
-private fun ActiveSession(battery: BatterySnapshot, freeze: FreezeState, onStop: () -> Unit) {
+private fun ActiveSession(battery: BatterySnapshot, freeze: FreezeState) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         ActiveBanner(freeze)
         DetailPanel(
@@ -193,13 +214,6 @@ private fun ActiveSession(battery: BatterySnapshot, freeze: FreezeState, onStop:
                     MaterialTheme.colorScheme.tertiary
                 )
             )
-        )
-        FilledAction(
-            stringResource(R.string.stop_freeze),
-            Icons.Default.PauseCircle,
-            MaterialTheme.colorScheme.error,
-            MaterialTheme.colorScheme.onError,
-            onStop
         )
     }
 }
