@@ -1,6 +1,9 @@
 package com.alpwarestudio.chargefreeze
 
 import android.content.Context
+import android.content.res.Configuration
+import android.graphics.Color
+import android.graphics.drawable.Drawable
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.PredictiveBackHandler
@@ -8,34 +11,34 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalView
-import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 import com.alpwarestudio.chargefreeze.data.AppPreferences
 import com.alpwarestudio.chargefreeze.data.LanguageMode
@@ -47,6 +50,8 @@ import com.alpwarestudio.chargefreeze.ui.screens.MainViewModel
 import com.alpwarestudio.chargefreeze.ui.screens.SettingsScreen
 import com.alpwarestudio.chargefreeze.ui.theme.ChargeFreezeTheme
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.launch
+import androidx.core.graphics.drawable.toDrawable
 
 class MainActivity : ComponentActivity() {
     private val vm by viewModels<MainViewModel>()
@@ -59,6 +64,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         val preferences = AppPreferences(this)
+        applyWindowBackground(preferences.themeMode)
 
         setContent {
             var themeMode by remember { mutableStateOf(preferences.themeMode) }
@@ -77,6 +83,14 @@ class MainActivity : ComponentActivity() {
             }
 
             ChargeFreezeTheme(themeMode) {
+                val windowBackground = MaterialTheme.colorScheme.background
+
+                SideEffect {
+                    // Keep the platform window identical to the Compose background. This layer
+                    // can become visible for a frame while destinations move or fade.
+                    window.setBackgroundDrawable(windowBackground.toArgb().toDrawable())
+                }
+
                 AppNavigation(
                     vm = vm,
                     preferences = preferences,
@@ -84,6 +98,7 @@ class MainActivity : ComponentActivity() {
                     onThemeChanged = { mode ->
                         preferences.themeMode = mode
                         themeMode = mode
+                        applyWindowBackground(mode)
                     },
                     onLanguageChanged = {
                         preferences.languageMode = it
@@ -92,6 +107,19 @@ class MainActivity : ComponentActivity() {
                 )
             }
         }
+    }
+
+    private fun applyWindowBackground(mode: ThemeMode) {
+        val systemDark = resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK ==
+            Configuration.UI_MODE_NIGHT_YES
+        val dark = when (mode) {
+            ThemeMode.SYSTEM -> systemDark
+            ThemeMode.LIGHT -> false
+            ThemeMode.DARK -> true
+        }
+        window.setBackgroundDrawable(
+            (if (dark) Color.rgb(16, 20, 24) else Color.rgb(247, 249, 252).toDrawable()) as Drawable?
+        )
     }
 }
 
@@ -106,8 +134,9 @@ private fun AppNavigation(
     var screenName by rememberSaveable { mutableStateOf(AppScreen.HOME.name) }
     val screen = AppScreen.entries.firstOrNull { it.name == screenName } ?: AppScreen.HOME
     val backProgress = remember { Animatable(0f) }
-    var backInProgress by remember { mutableStateOf(false) }
-    var skipNextTransition by remember { mutableStateOf(false) }
+    val animationScope = rememberCoroutineScope()
+    val previousScreen by rememberUpdatedState(screen.parent)
+    var predictiveCommitInProgress by remember { mutableStateOf(false) }
 
     fun navigate(destination: AppScreen) {
         screenName = destination.name
@@ -119,27 +148,92 @@ private fun AppNavigation(
 
     PredictiveBackHandler(enabled = screen.parent != null) { events ->
         try {
-            backInProgress = true
             events.collect { event ->
                 backProgress.snapTo(event.progress.coerceIn(0f, 1f))
             }
-            skipNextTransition = true
-            screen.parent?.let { screenName = it.name }
+            if (previousScreen != null) {
+                predictiveCommitInProgress = true
+                navigateBack()
+            }
             backProgress.snapTo(0f)
-            backInProgress = false
         } catch (_: CancellationException) {
-            backProgress.animateTo(0f, tween(180, easing = FastOutSlowInEasing))
-            backInProgress = false
+            animationScope.launch {
+                backProgress.animateTo(0f, tween(120))
+            }
         }
     }
 
     LaunchedEffect(screenName) {
-        if (skipNextTransition) skipNextTransition = false
+        backProgress.snapTo(0f)
+        if (predictiveCommitInProgress) predictiveCommitInProgress = false
     }
 
-    Box(Modifier.fillMaxSize()) {
-        if (backInProgress) {
+    val gestureProgress = backProgress.value
+
+    Box(
+        Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+    ) {
+        if (gestureProgress > 0.001f) {
             screen.parent?.let { destination ->
+                Box(
+                    Modifier
+                        .fillMaxSize()
+                        .graphicsLayer {
+                            translationX = -size.width * 0.06f * (1f - gestureProgress)
+                        }
+                        .background(MaterialTheme.colorScheme.background)
+                ) {
+                    AppScreenContent(
+                        screen = destination,
+                        vm = vm,
+                        preferences = preferences,
+                        themeMode = themeMode,
+                        onThemeChanged = onThemeChanged,
+                        onLanguageChanged = onLanguageChanged,
+                        onNavigate = ::navigate,
+                        onBack = ::navigateBack,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+            }
+        }
+
+        AnimatedContent(
+            targetState = screen,
+            modifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer {
+                    if (gestureProgress > 0f) {
+                        translationX = size.width * gestureProgress
+                    }
+                },
+            transitionSpec = {
+                if (predictiveCommitInProgress) {
+                    EnterTransition.None togetherWith ExitTransition.None
+                } else {
+                    val goingBack = targetState.depth < initialState.depth
+                    val enter = if (goingBack) {
+                        slideInHorizontally(tween(240)) { -it / 10 } + fadeIn(tween(180))
+                    } else {
+                        slideInHorizontally(tween(260)) { it / 10 } + fadeIn(tween(200))
+                    }
+                    val exit = if (goingBack) {
+                        slideOutHorizontally(tween(240)) { it / 6 } + fadeOut(tween(160))
+                    } else {
+                        slideOutHorizontally(tween(220)) { -it / 12 } + fadeOut(tween(160))
+                    }
+                    enter togetherWith exit
+                }
+            },
+            label = "app-screen"
+        ) { destination ->
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.background)
+            ) {
                 AppScreenContent(
                     screen = destination,
                     vm = vm,
@@ -149,76 +243,11 @@ private fun AppNavigation(
                     onLanguageChanged = onLanguageChanged,
                     onNavigate = ::navigate,
                     onBack = ::navigateBack,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .graphicsLayer {
-                            val progress = backProgress.value
-                            val scale = 0.94f + (0.06f * progress)
-                            scaleX = scale
-                            scaleY = scale
-                            alpha = 0.72f + (0.28f * progress)
-                        }
+                    modifier = Modifier.fillMaxSize()
                 )
             }
         }
-
-        AnimatedContent(
-            targetState = screen,
-            modifier = Modifier
-                .fillMaxSize()
-                .graphicsLayer {
-                    val progress = backProgress.value
-                    translationX = size.width * 0.12f * progress
-                    val scale = 1f - (0.08f * progress)
-                    scaleX = scale
-                    scaleY = scale
-                    transformOrigin = TransformOrigin(
-                        pivotFractionX = 1f,
-                        pivotFractionY = 0.5f
-                    )
-                    shape = RoundedCornerShape((28f * progress).dp)
-                    clip = progress > 0f
-                    shadowElevation = 10.dp.toPx() * progress
-                },
-            transitionSpec = {
-                navigationTransition(
-                    movingForward = targetState.depth > initialState.depth,
-                    skipAnimation = skipNextTransition
-                )
-            },
-            label = "app-screen"
-        ) { destination ->
-            AppScreenContent(
-                screen = destination,
-                vm = vm,
-                preferences = preferences,
-                themeMode = themeMode,
-                onThemeChanged = onThemeChanged,
-                onLanguageChanged = onLanguageChanged,
-                onNavigate = ::navigate,
-                onBack = ::navigateBack,
-                modifier = Modifier.fillMaxSize()
-            )
-        }
     }
-}
-
-private fun navigationTransition(
-    movingForward: Boolean,
-    skipAnimation: Boolean
-): ContentTransform {
-    if (skipAnimation) return EnterTransition.None togetherWith ExitTransition.None
-
-    val duration = 300
-    val enter = slideInHorizontally(
-        animationSpec = tween(duration, easing = FastOutSlowInEasing),
-        initialOffsetX = { width -> if (movingForward) width / 5 else -width / 6 }
-    ) + fadeIn(tween(durationMillis = 180, delayMillis = 45))
-    val exit = slideOutHorizontally(
-        animationSpec = tween(duration, easing = FastOutSlowInEasing),
-        targetOffsetX = { width -> if (movingForward) -width / 8 else width / 5 }
-    ) + fadeOut(tween(durationMillis = 150))
-    return enter togetherWith exit
 }
 
 @Composable

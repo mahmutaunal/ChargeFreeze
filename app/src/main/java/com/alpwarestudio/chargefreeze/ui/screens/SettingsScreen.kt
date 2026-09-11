@@ -356,7 +356,6 @@ private fun TopBar(title: String, onBack: () -> Unit) {
         }
         Text(title, style = MaterialTheme.typography.titleLarge)
     }
-    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 }
 
 @Composable

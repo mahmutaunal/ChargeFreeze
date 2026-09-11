@@ -12,7 +12,7 @@ extensions.configure<com.android.build.api.dsl.ApplicationExtension>("android") 
         applicationId = "com.alpwarestudio.chargefreeze"
         minSdk = 31
         targetSdk = 37
-        versionCode = 5
+        versionCode = 6
         versionName = "1.0.0"
     }
 
